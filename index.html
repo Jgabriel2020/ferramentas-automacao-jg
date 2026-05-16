@@ -826,10 +826,10 @@ tr:hover td { background: var(--bg3); }
 
     <div class="pdf-drop" id="pdfDrop" onclick="document.getElementById('pdfInput').click()">
       <div class="icon">📑</div>
-      <h3>Arraste os PDFs aqui ou clique para selecionar</h3>
-      <p>Até <strong>60 arquivos</strong> PDF · Formulário "Modelo para Unidades Isoladas"<br>
-         O Gemini extrairá automaticamente o nome do beneficiário e as coordenadas de cada documento</p>
-      <input type="file" id="pdfInput" accept=".pdf" multiple>
+      <h3>Arraste PDFs ou fotos aqui · clique para selecionar</h3>
+      <p>Até <strong>60 arquivos</strong> · PDF ou imagem (JPG, PNG) · Formulário "Modelo para Unidades Isoladas"<br>
+         O Gemini extrairá automaticamente o nome do beneficiário e as coordenadas de cada documento ou foto</p>
+      <input type="file" id="pdfInput" accept=".pdf,image/*" multiple>
     </div>
 
     <div class="pdf-file-list" id="pdfFileList">
@@ -916,12 +916,12 @@ async function callGemini(key, prompt) {
 
 async function callGeminiMultimodal(key, base64pdf, mimeType) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
-  const prompt = `Este é um formulário de cadastro imobiliário chamado "Modelo para Unidades Isoladas".
+  const prompt = `Este é um documento ou foto de cadastro imobiliário (pode ser o formulário "Modelo para Unidades Isoladas", uma foto tirada com app de GPS como NoteCam, ou qualquer documento com dados de georreferenciamento).
 
 Extraia as seguintes informações e retorne APENAS um JSON válido, sem markdown, sem texto extra:
 
 {
-  "nome": "NOME DO BENEFICIÁRIO conforme aparece no formulário",
+  "nome": "NOME DO BENEFICIÁRIO ou proprietário conforme aparece no documento/foto",
   "lat_grau": número inteiro do grau da latitude,
   "lat_min": número inteiro do minuto da latitude,
   "lat_seg": número (pode ter decimal) do segundo da latitude,
@@ -936,8 +936,10 @@ Extraia as seguintes informações e retorne APENAS um JSON válido, sem markdow
 }
 
 Regras:
-- A tabela de coordenadas tem colunas: GRAU, MINUTO, SEGUNDO para LATITUDE e LONGITUDE
+- Se for formulário: a tabela de coordenadas tem colunas GRAU, MINUTO, SEGUNDO para LATITUDE e LONGITUDE
+- Se for foto com overlay GPS (ex: NoteCam): as coordenadas aparecem sobrepostas na imagem no formato grau°min'seg"direção
 - Latitude Sul = negativa no decimal, Longitude Oeste = negativa no decimal
+- Precisão: 7 casas decimais no decimal
 - Se não encontrar algum campo, use null`;
 
   const body = { contents: [{ parts: [
@@ -994,22 +996,39 @@ function handleRecibo(input) {
     setStatus('loading', 'Extraindo dados do documento via IA...');
 
     reciboImagens = [];
-    try {
-      const pdfData = atob(reciboBase64);
-      const pdfBytes = new Uint8Array(pdfData.length);
-      for (let i = 0; i < pdfData.length; i++) pdfBytes[i] = pdfData.charCodeAt(i);
-      const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
-      for (let p = 1; p <= pdf.numPages; p++) {
-        const page = await pdf.getPage(p);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width; canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-        reciboImagens.push(canvas.toDataURL('image/jpeg', 0.95));
+    if (file.type.startsWith('image/')) {
+      // Foto: converte direto para página do documento
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          reciboImagens.push(canvas.toDataURL('image/jpeg', 0.95));
+          resolve();
+        };
+        img.src = e.target.result;
+      });
+      document.getElementById('reciboSub').textContent = 'Foto convertida — pronto';
+    } else {
+      // PDF: renderiza cada página via pdfjsLib
+      try {
+        const pdfData = atob(reciboBase64);
+        const pdfBytes = new Uint8Array(pdfData.length);
+        for (let i = 0; i < pdfData.length; i++) pdfBytes[i] = pdfData.charCodeAt(i);
+        const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width; canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          reciboImagens.push(canvas.toDataURL('image/jpeg', 0.95));
+        }
+        document.getElementById('reciboSub').textContent = `${pdf.numPages} página(s) — pronto`;
+      } catch(err) {
+        document.getElementById('reciboSub').textContent = 'Documento carregado';
       }
-      document.getElementById('reciboSub').textContent = `${pdf.numPages} página(s) — pronto`;
-    } catch(err) {
-      document.getElementById('reciboSub').textContent = 'PDF carregado';
     }
 
     enviarPDFParaExtracao();
@@ -1389,7 +1408,9 @@ pdfDrop.addEventListener('dragover', e => { e.preventDefault(); pdfDrop.classLis
 pdfDrop.addEventListener('dragleave', () => pdfDrop.classList.remove('drag'));
 pdfDrop.addEventListener('drop', e => {
   e.preventDefault(); pdfDrop.classList.remove('drag');
-  addPDFFiles(Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')));
+  addPDFFiles(Array.from(e.dataTransfer.files).filter(f =>
+    f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf') || f.type.startsWith('image/')
+  ));
 });
 
 function addPDFFiles(files) {
@@ -1412,10 +1433,11 @@ function renderFileList() {
     if (s === 'processing') statusHtml = '<span class="fi-status processing">⟳ processando...</span>';
     else if (s === 'done')  statusHtml = '<span class="fi-status done">✓ concluído</span>';
     else if (s === 'error') statusHtml = '<span class="fi-status error">✗ erro</span>';
+    const fileIcon = f.type.startsWith('image/') ? '🖼️' : '📄';
     const div = document.createElement('div');
     div.className = 'pdf-file-item'; div.id = 'pdf-item-' + i;
     div.innerHTML = `
-      <div class="fi-num">${i + 1}</div>
+      <div class="fi-num" style="font-size:14px;">${fileIcon}</div>
       <div class="fi-name" title="${f.name}">${f.name}</div>
       <div class="fi-size">${(f.size / 1024).toFixed(0)} KB</div>
       ${statusHtml}
@@ -1500,7 +1522,7 @@ async function extractAllPDFs() {
 
     try {
       const base64 = await fileToBase64(file);
-      const response = await callGeminiMultimodal(key, base64, 'application/pdf');
+      const response = await callGeminiMultimodal(key, base64, file.type || 'application/pdf');
       let jsonStr = response.trim().replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
       const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
       if (jsonMatch) jsonStr = jsonMatch[0];
