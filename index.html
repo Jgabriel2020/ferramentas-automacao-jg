@@ -98,49 +98,6 @@ body {
   padding: 4px 14px; border-radius: 20px;
 }
 
-/* ═══════════════════════════════════════
-   API KEY SECTION (shared)
-═══════════════════════════════════════ */
-.api-section {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.25rem;
-  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
-}
-
-.api-label {
-  font-size: 11px; font-weight: 500; color: var(--text2);
-  text-transform: uppercase; letter-spacing: .06em;
-  white-space: nowrap; padding-top: 10px;
-  display: flex; align-items: center; gap: 7px;
-}
-
-.api-label .dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--green); flex-shrink: 0;
-}
-
-.api-inputs { flex: 1; min-width: 220px; }
-
-.api-row { display: flex; gap: 8px; }
-
-.api-row input {
-  flex: 1; background: var(--bg3); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 8px 12px;
-  color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;
-  outline: none; transition: border-color .2s;
-}
-.api-row input:focus { border-color: var(--green); }
-.api-row input::placeholder { color: var(--text3); }
-
-.api-hint { font-size: 11px; color: var(--text3); margin-top: 5px; }
-.api-hint a { color: var(--blue); text-decoration: none; }
-.api-hint a:hover { text-decoration: underline; }
-.api-status { font-size: 12px; margin-top: 6px; display: none; }
-.api-status.ok  { color: var(--green); display: block; }
-.api-status.err { color: var(--red);   display: block; }
 
 /* ═══════════════════════════════════════
    MAIN TABS
@@ -277,6 +234,18 @@ body {
 }
 
 .divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+/* Textarea global fix */
+textarea {
+  width: 100%; background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  line-height: 1.6; resize: vertical; outline: none;
+  transition: border-color .2s;
+}
+textarea:focus { border-color: var(--green); }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; }
@@ -595,26 +564,6 @@ tr:hover td { background: var(--bg3); }
     <div class="eyebrow">⚡ Automação JG</div>
   </div>
 
-  <!-- ─── CHAVE GEMINI (compartilhada) ─── -->
-  <div class="api-section" id="geminiSection">
-    <div class="api-label">
-      <div class="dot"></div>
-      Gemini API
-    </div>
-    <div class="api-inputs">
-      <div class="api-row">
-        <input type="password" id="apiKey" placeholder="Cole sua chave: AIza...">
-        <button class="btn-sm" onclick="testAPI()">Testar</button>
-      </div>
-      <div class="api-hint">
-        Obtenha sua chave gratuita em
-        <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>
-        · Necessária para o Conversor KML e Extrator de PDFs
-      </div>
-      <div class="api-status" id="apiStatus"></div>
-    </div>
-  </div>
-
   <!-- ─── TABS PRINCIPAIS ─── -->
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchMainTab('tabGerador', this)">📋 Gerador de Modelo</button>
@@ -775,7 +724,7 @@ tr:hover td { background: var(--bg3); }
             <p><strong>Clique ou arraste o arquivo</strong><br>CSV, TXT</p>
             <input type="file" id="fileInput" accept=".csv,.txt">
           </div>
-          <textarea class="field" style="margin:0;" id="rawText" rows="8" placeholder="Nº,Latitude,Longitude
+          <textarea id="rawText" rows="8" placeholder="Nº,Latitude,Longitude
 1,6°37'4&quot;S ,35°16'52&quot;W
 2,6°37'23&quot;S ,35°17'0&quot;W"></textarea>
         </div>
@@ -851,7 +800,7 @@ tr:hover td { background: var(--bg3); }
 
       <div class="actions">
         <button class="btn" onclick="processData()">⚙ Processar coordenadas</button>
-        <button class="btn" id="btnAI" onclick="processWithAI()" disabled>✦ Processar com Gemini</button>
+        <button class="btn" id="btnAI" onclick="processWithAI()">✦ Processar com Gemini</button>
         <button class="btn primary" id="btnDownload" onclick="downloadKML()" disabled>⬇ Baixar KML</button>
         <button class="btn" id="btnKMZ" onclick="downloadKML('kmz')" disabled>⬇ Baixar KMZ</button>
       </div>
@@ -902,7 +851,7 @@ tr:hover td { background: var(--bg3); }
     </div>
 
     <div class="actions" style="margin-bottom:0">
-      <button class="btn primary" id="btnExtract" onclick="extractAllPDFs()" disabled>✦ Extrair Coordenadas</button>
+      <button class="btn primary" id="btnExtract" onclick="extractAllPDFs()">✦ Extrair Coordenadas</button>
       <button class="btn" id="btnExportCsv" onclick="exportResultsCSV()" disabled>⬇ Exportar CSV</button>
       <button class="btn" id="btnCopyList" onclick="copyTextList()" disabled>⎘ Copiar Lista</button>
     </div>
@@ -954,6 +903,8 @@ function switchMainTab(id, btn) {
 // ═══════════════════════════════════════
 // GEMINI API (compartilhada)
 // ═══════════════════════════════════════
+const GEMINI_KEY = 'AIzaSyAie3QxhUtMHEpaar-E_7FHDT-1ktoUh8U';
+
 async function callGemini(key, prompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
   const body = { contents: [{ parts: [{ text: prompt }] }] };
@@ -999,30 +950,6 @@ Regras:
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function testAPI() {
-  const key = document.getElementById('apiKey').value.trim();
-  const status = document.getElementById('apiStatus');
-  if (!key) { status.textContent = '⚠ Cole a chave primeiro.'; status.className = 'api-status err'; return; }
-  status.textContent = 'Testando...'; status.className = 'api-status';
-  try {
-    const res = await callGemini(key, 'Responda apenas: OK');
-    if (res.includes('OK')) {
-      status.textContent = '✓ Chave válida! Gemini conectado.'; status.className = 'api-status ok';
-      document.getElementById('btnAI').disabled = false;
-      document.getElementById('btnExtract').disabled = pdfFiles.length === 0;
-    } else {
-      status.textContent = '✗ Resposta inesperada.'; status.className = 'api-status err';
-    }
-  } catch(e) {
-    status.textContent = '✗ ' + (e.message || 'Chave inválida.'); status.className = 'api-status err';
-  }
-}
-
-document.getElementById('apiKey').addEventListener('input', () => {
-  const hasKey = !!document.getElementById('apiKey').value.trim();
-  document.getElementById('btnAI').disabled = !hasKey;
-  document.getElementById('btnExtract').disabled = !hasKey || pdfFiles.length === 0;
-});
 
 // ═══════════════════════════════════════
 // TAB 1 — GERADOR DE MODELO
@@ -1301,7 +1228,7 @@ function processData() {
   document.getElementById('btnDownload').disabled = parsedPoints.length === 0;
   document.getElementById('btnKMZ').disabled = parsedPoints.length === 0;
 
-  if (errors > 0 && document.getElementById('apiKey').value) {
+  if (errors > 0) {
     showError(`${errors} linha(s) não puderam ser convertidas. Clique em "Processar com Gemini" para corrigir automaticamente.`);
   }
 }
@@ -1331,7 +1258,7 @@ function updatePreviewBadge(errors) {
 }
 
 async function processWithAI() {
-  const key = document.getElementById('apiKey').value.trim();
+  const key = GEMINI_KEY;
   if (!key) { showError('Configure e teste a chave Gemini primeiro.'); return; }
   const raw = document.getElementById('rawText').value.trim();
   if (!raw) { showError('Cole os dados primeiro.'); return; }
@@ -1469,8 +1396,7 @@ function addPDFFiles(files) {
   const toAdd = files.slice(0, 60 - pdfFiles.length);
   pdfFiles = pdfFiles.concat(toAdd);
   renderFileList();
-  const hasKey = !!document.getElementById('apiKey').value.trim();
-  document.getElementById('btnExtract').disabled = pdfFiles.length === 0 || !hasKey;
+  document.getElementById('btnExtract').disabled = pdfFiles.length === 0;
 }
 
 function renderFileList() {
@@ -1540,7 +1466,7 @@ function formatDMS(grau, min, seg, dir) {
 }
 
 async function extractAllPDFs() {
-  const key = document.getElementById('apiKey').value.trim();
+  const key = GEMINI_KEY;
   if (!key) { alert('Configure a chave Gemini primeiro.'); return; }
   if (pdfFiles.length === 0) { alert('Selecione ao menos um PDF.'); return; }
 
