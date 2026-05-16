@@ -6,6 +6,8 @@
 <title>Plataforma JG — Automação Imobiliária</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -569,6 +571,7 @@ tr:hover td { background: var(--bg3); }
     <button class="tab-btn active" onclick="switchMainTab('tabGerador', this)">📋 Gerador de Modelo</button>
     <button class="tab-btn" onclick="switchMainTab('tabKML', this)">🌍 Conversor KML</button>
     <button class="tab-btn" onclick="switchMainTab('tabPDF', this)">📄 Extrator de PDFs</button>
+    <button class="tab-btn" onclick="switchMainTab('tabCad', this)">📊 Cadastro Único</button>
   </div>
 
 
@@ -886,6 +889,79 @@ tr:hover td { background: var(--bg3); }
     </div>
 
   </div><!-- /tabPDF -->
+
+
+  <!-- ═══════════════════════════════════════════
+       TAB 4 — EXTRATOR CADASTRO ÚNICO
+  ═══════════════════════════════════════════ -->
+  <div id="tabCad" class="tab-content">
+
+    <!-- Drop zone -->
+    <div class="pdf-drop" id="cadDrop" onclick="document.getElementById('cadInput').click()">
+      <div class="icon">📊</div>
+      <h3>Arraste Folhas Resumo ou Comprovantes · clique para selecionar</h3>
+      <p>Até <strong>60 documentos</strong> · PDF ou foto (JPG, PNG)<br>
+         Extrai Nome, CPF, NIS e Nascimento do Responsável Familiar e Cônjuge · Ordena A→Z · Gera PDF</p>
+      <input type="file" id="cadInput" accept=".pdf,image/*" multiple>
+    </div>
+
+    <!-- File list -->
+    <div class="pdf-file-list" id="cadFileList">
+      <div class="pdf-file-list-header">
+        <span>📋 Documentos selecionados — <span id="cadCount">0</span>/60</span>
+        <button class="btn-sm" onclick="clearCad()">✕ Limpar</button>
+      </div>
+      <div class="pdf-file-items" id="cadFileItems"></div>
+    </div>
+
+    <!-- Progress -->
+    <div class="pdf-progress" id="cadProgress">
+      <div class="progress-label">
+        <span id="cadProgressLabel">Processando...</span>
+        <span id="cadProgressPct">0%</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="cadProgressFill"></div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions" style="margin-bottom:0">
+      <button class="btn primary" id="btnExtractCad" onclick="extractCadastro()">✦ Extrair dados</button>
+      <button class="btn purple" id="btnCadPDF" onclick="generateCadastroPDF()" disabled>⬇ Gerar PDF</button>
+      <button class="btn" id="btnCadCSV" onclick="exportCadCSV()" disabled>⬇ Exportar CSV</button>
+    </div>
+
+    <!-- Results table -->
+    <div class="pdf-results" id="cadResults" style="margin-top:1.5rem;">
+      <div class="results-card">
+        <div class="results-header">
+          <div class="results-header-left">
+            📊 Beneficiários extraídos
+            <span class="badge ok" id="cadBadge">0 famílias</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);">Ordenado A→Z pelo nome do responsável</div>
+        </div>
+        <div class="results-table-scroll" style="max-height:520px;">
+          <table class="results-table" id="cadTable">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width:32px;vertical-align:middle;">#</th>
+                <th colspan="4" style="text-align:center;color:var(--green);border-bottom:1px solid var(--green-border);">Responsável Familiar</th>
+                <th colspan="4" style="text-align:center;color:var(--purple);border-bottom:1px solid var(--purple-border);">Cônjuge / Companheiro(a)</th>
+              </tr>
+              <tr>
+                <th>Nome</th><th>CPF</th><th>NIS</th><th>Nascimento</th>
+                <th style="color:var(--purple)">Nome</th><th style="color:var(--purple)">CPF</th><th style="color:var(--purple)">NIS</th><th style="color:var(--purple)">Nascimento</th>
+              </tr>
+            </thead>
+            <tbody id="cadBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tabCad -->
 
 </div><!-- /container -->
 
@@ -1607,6 +1683,343 @@ function copyTextList() {
     btn.innerHTML = '✓ Copiado!';
     setTimeout(() => { btn.innerHTML = orig; }, 2000);
   });
+}
+
+// ═══════════════════════════════════════
+// TAB 4 — EXTRATOR CADASTRO ÚNICO
+// ═══════════════════════════════════════
+let cadFiles = [];
+let cadStatusArr = [];
+let cadData = [];
+
+const cadDrop  = document.getElementById('cadDrop');
+const cadInput = document.getElementById('cadInput');
+
+cadInput.addEventListener('change', e => { addCadFiles(Array.from(e.target.files)); e.target.value = ''; });
+cadDrop.addEventListener('dragover',  e => { e.preventDefault(); cadDrop.classList.add('drag'); });
+cadDrop.addEventListener('dragleave', () => cadDrop.classList.remove('drag'));
+cadDrop.addEventListener('drop', e => {
+  e.preventDefault(); cadDrop.classList.remove('drag');
+  addCadFiles(Array.from(e.dataTransfer.files).filter(f =>
+    f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf') || f.type.startsWith('image/')
+  ));
+});
+
+function addCadFiles(files) {
+  const toAdd = files.slice(0, 60 - cadFiles.length);
+  cadFiles = cadFiles.concat(toAdd);
+  renderCadList();
+  document.getElementById('btnExtractCad').disabled = cadFiles.length === 0;
+}
+
+function renderCadList() {
+  const list  = document.getElementById('cadFileList');
+  const items = document.getElementById('cadFileItems');
+  if (cadFiles.length === 0) { list.style.display = 'none'; return; }
+  list.style.display = 'block';
+  document.getElementById('cadCount').textContent = cadFiles.length;
+  items.innerHTML = '';
+  cadFiles.forEach((f, i) => {
+    const s = cadStatusArr[i];
+    let st = '<span class="fi-status pending">· pendente</span>';
+    if (s === 'processing') st = '<span class="fi-status processing">⟳ processando...</span>';
+    else if (s === 'done')  st = '<span class="fi-status done">✓ concluído</span>';
+    else if (s === 'error') st = '<span class="fi-status error">✗ erro</span>';
+    const icon = f.type.startsWith('image/') ? '🖼️' : '📄';
+    const div = document.createElement('div');
+    div.className = 'pdf-file-item'; div.id = 'cad-item-' + i;
+    div.innerHTML = `
+      <div class="fi-num" style="font-size:14px;">${icon}</div>
+      <div class="fi-name" title="${f.name}">${f.name}</div>
+      <div class="fi-size">${(f.size/1024).toFixed(0)} KB</div>
+      ${st}
+    `;
+    items.appendChild(div);
+  });
+}
+
+function updateCadStatus(i, s) {
+  cadStatusArr[i] = s;
+  const item = document.getElementById('cad-item-' + i);
+  if (!item) return;
+  const el = item.querySelector('[class^="fi-status"], .fi-status');
+  if (!el) return;
+  const map = { processing:'⟳ processando...', done:'✓ concluído', error:'✗ erro' };
+  el.className = 'fi-status ' + s;
+  el.textContent = map[s] || '· pendente';
+}
+
+function clearCad() {
+  cadFiles = []; cadStatusArr = []; cadData = [];
+  renderCadList();
+  document.getElementById('cadProgress').style.display = 'none';
+  document.getElementById('cadResults').style.display = 'none';
+  document.getElementById('btnCadPDF').disabled = true;
+  document.getElementById('btnCadCSV').disabled = true;
+  document.getElementById('cadBody').innerHTML = '';
+}
+
+async function callGeminiCadastro(base64, mimeType) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+  const prompt = `Este é um documento do Cadastro Único brasileiro (Folha Resumo do CadÚnico ou Comprovante de Cadastro).
+
+Extraia os dados do RESPONSÁVEL FAMILIAR e do CÔNJUGE/COMPANHEIRO(A) (se existir) e retorne APENAS um JSON válido, sem markdown, sem texto extra:
+
+{
+  "responsavel": {
+    "nome": "NOME COMPLETO EM MAIÚSCULAS",
+    "cpf": "000.000.000-00",
+    "nis": "00000000000",
+    "nascimento": "DD/MM/AAAA"
+  },
+  "conjuge": {
+    "nome": "NOME COMPLETO EM MAIÚSCULAS",
+    "cpf": "000.000.000-00",
+    "nis": "00000000000",
+    "nascimento": "DD/MM/AAAA"
+  }
+}
+
+Regras:
+- O Responsável Familiar é identificado como "Responsável Familiar", "Responsável", "RF" ou "Pessoa Responsável pela Unidade Familiar - RF"
+- O Cônjuge é identificado como "Cônjuge ou companheiro(a)", "4.07 - Parentesco com Responsável: Cônjuge" ou similar
+- NIS pode aparecer como NIS, PIS ou PASEP — use o número de 11 dígitos
+- CPF no formato 000.000.000-00
+- Nascimento no formato DD/MM/AAAA
+- Se NÃO houver cônjuge/companheiro no documento, defina "conjuge" como null
+- Se algum campo não for encontrado, use null para esse campo`;
+
+  const body = { contents: [{ parts: [
+    { inline_data: { mime_type: mimeType, data: base64 } },
+    { text: prompt }
+  ] }] };
+  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Erro na API'); }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function extractCadastro() {
+  if (cadFiles.length === 0) { alert('Selecione ao menos um documento.'); return; }
+
+  cadData = [];
+  cadStatusArr = new Array(cadFiles.length).fill('pending');
+  renderCadList();
+
+  document.getElementById('btnExtractCad').disabled = true;
+  const prog     = document.getElementById('cadProgress');
+  const progLbl  = document.getElementById('cadProgressLabel');
+  const progPct  = document.getElementById('cadProgressPct');
+  const progFill = document.getElementById('cadProgressFill');
+  prog.style.display = 'block';
+
+  const resultsDiv = document.getElementById('cadResults');
+  const tbody = document.getElementById('cadBody');
+  tbody.innerHTML = '';
+  resultsDiv.style.display = 'none';
+
+  let done = 0;
+
+  for (let i = 0; i < cadFiles.length; i++) {
+    const file = cadFiles[i];
+    updateCadStatus(i, 'processing');
+    progLbl.textContent  = `Processando ${i+1} de ${cadFiles.length}: ${file.name}`;
+    progPct.textContent  = Math.round((i / cadFiles.length) * 100) + '%';
+    progFill.style.width = Math.round((i / cadFiles.length) * 100) + '%';
+
+    let row = { index: i+1, fileName: file.name, responsavel: null, conjuge: null, error: null };
+
+    try {
+      const base64 = await fileToBase64(file);
+      const raw    = await callGeminiCadastro(base64, file.type || 'application/pdf');
+      let jsonStr  = raw.trim().replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+      const match  = jsonStr.match(/\{[\s\S]*\}/);
+      if (match) jsonStr = match[0];
+      const parsed = JSON.parse(jsonStr);
+      row.responsavel = parsed.responsavel || null;
+      row.conjuge     = parsed.conjuge     || null;
+      updateCadStatus(i, 'done'); done++;
+    } catch(e) {
+      row.error = e.message || 'Falha ao processar';
+      updateCadStatus(i, 'error');
+    }
+
+    cadData.push(row);
+  }
+
+  progLbl.textContent  = `✓ Concluído — ${done} de ${cadFiles.length} processados`;
+  progPct.textContent  = '100%';
+  progFill.style.width = '100%';
+
+  // Ordenar A→Z pelo nome do responsável e renderizar
+  const sorted = getSortedCad();
+  renderCadTable(sorted);
+
+  const okCount = sorted.filter(d => !d.error).length;
+  document.getElementById('cadBadge').textContent = okCount + ' famílias';
+  resultsDiv.style.display = 'block';
+  document.getElementById('btnCadPDF').disabled = okCount === 0;
+  document.getElementById('btnCadCSV').disabled = okCount === 0;
+  document.getElementById('btnExtractCad').disabled = false;
+}
+
+function getSortedCad() {
+  return [...cadData].sort((a, b) => {
+    const nA = a.responsavel?.nome || '';
+    const nB = b.responsavel?.nome || '';
+    return nA.localeCompare(nB, 'pt-BR', { sensitivity: 'base' });
+  });
+}
+
+function renderCadTable(rows) {
+  const tbody = document.getElementById('cadBody');
+  tbody.innerHTML = '';
+  rows.forEach((d, idx) => {
+    const tr = document.createElement('tr');
+    if (d.error) {
+      tr.innerHTML = `
+        <td class="td-num">${idx+1}</td>
+        <td colspan="8" class="td-err">✗ ${d.fileName} — ${d.error}</td>
+      `;
+    } else {
+      const r = d.responsavel || {};
+      const c = d.conjuge    || {};
+      const hasC = d.conjuge !== null;
+      tr.innerHTML = `
+        <td class="td-num">${idx+1}</td>
+        <td style="color:var(--text);font-weight:500;font-family:'Sora',sans-serif;font-size:12px;">${r.nome||'—'}</td>
+        <td class="td-coord" style="font-size:11px;">${r.cpf||'—'}</td>
+        <td class="td-dms">${r.nis||'—'}</td>
+        <td class="td-dms">${r.nascimento||'—'}</td>
+        <td style="color:var(--purple);font-weight:500;font-family:'Sora',sans-serif;font-size:12px;">${hasC?(c.nome||'—'):'<span style="color:var(--text3);font-style:italic;">—</span>'}</td>
+        <td style="color:var(--purple);font-size:11px;font-family:\'JetBrains Mono\',monospace;">${hasC?(c.cpf||'—'):'—'}</td>
+        <td class="td-dms" style="color:var(--text2);">${hasC?(c.nis||'—'):'—'}</td>
+        <td class="td-dms" style="color:var(--text2);">${hasC?(c.nascimento||'—'):'—'}</td>
+      `;
+    }
+    tbody.appendChild(tr);
+  });
+}
+
+function generateCadastroPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  const sorted = getSortedCad().filter(d => !d.error && d.responsavel);
+  const hoje   = new Date().toLocaleDateString('pt-BR');
+
+  // Cabeçalho
+  doc.setFillColor(13, 17, 23);
+  doc.rect(0, 0, 297, 30, 'F');
+
+  doc.setTextColor(29, 185, 150);
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Relação de Beneficiários — Cadastro Único', 148.5, 12, { align: 'center' });
+
+  doc.setTextColor(139, 148, 158);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total: ${sorted.length} família(s)  ·  Gerado em ${hoje}  ·  Plataforma JG`, 148.5, 20, { align: 'center' });
+
+  // Separador verde
+  doc.setDrawColor(29, 185, 150);
+  doc.setLineWidth(0.5);
+  doc.line(10, 28, 287, 28);
+
+  // Tabela
+  const body = sorted.map((d, i) => {
+    const r = d.responsavel || {};
+    const c = d.conjuge;
+    return [
+      i + 1,
+      r.nome        || '—',
+      r.cpf         || '—',
+      r.nis         || '—',
+      r.nascimento  || '—',
+      c ? (c.nome       || '—') : '—',
+      c ? (c.cpf        || '—') : '—',
+      c ? (c.nis        || '—') : '—',
+      c ? (c.nascimento || '—') : '—',
+    ];
+  });
+
+  doc.autoTable({
+    startY: 32,
+    head: [[
+      { content: '#',              styles: { halign:'center' } },
+      { content: 'Nome Responsável Familiar',    styles: { halign:'left' } },
+      { content: 'CPF',            styles: { halign:'center' } },
+      { content: 'NIS',            styles: { halign:'center' } },
+      { content: 'Nascimento',     styles: { halign:'center' } },
+      { content: 'Nome Cônjuge / Companheiro(a)', styles: { halign:'left' } },
+      { content: 'CPF',            styles: { halign:'center' } },
+      { content: 'NIS',            styles: { halign:'center' } },
+      { content: 'Nascimento',     styles: { halign:'center' } },
+    ]],
+    body,
+    theme: 'grid',
+    styles: {
+      fontSize: 8,
+      cellPadding: 2.5,
+      font: 'helvetica',
+      textColor: [30, 30, 30],
+      lineColor: [220, 220, 220],
+      lineWidth: 0.2,
+    },
+    headStyles: {
+      fillColor: [29, 185, 150],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+    },
+    alternateRowStyles: { fillColor: [245, 253, 250] },
+    columnStyles: {
+      0: { cellWidth: 8,  halign: 'center', fontStyle: 'bold', textColor: [100,100,100] },
+      1: { cellWidth: 52, fontStyle: 'bold' },
+      2: { cellWidth: 28, halign: 'center', font:'courier' },
+      3: { cellWidth: 28, halign: 'center', font:'courier' },
+      4: { cellWidth: 22, halign: 'center' },
+      5: { cellWidth: 52, textColor: [80, 80, 200] },
+      6: { cellWidth: 28, halign: 'center', font:'courier', textColor: [80, 80, 200] },
+      7: { cellWidth: 28, halign: 'center', font:'courier', textColor: [80, 80, 200] },
+      8: { cellWidth: 22, halign: 'center', textColor: [80, 80, 200] },
+    },
+    didDrawPage: (hookData) => {
+      // Rodapé em cada página
+      const pgH = doc.internal.pageSize.getHeight();
+      doc.setFontSize(7);
+      doc.setTextColor(180, 180, 180);
+      doc.text(
+        `Página ${hookData.pageNumber} — Plataforma JG  ·  ${hoje}`,
+        148.5, pgH - 5, { align: 'center' }
+      );
+    },
+  });
+
+  doc.save(`cadastro-unico-${hoje.replace(/\//g,'-')}.pdf`);
+}
+
+function exportCadCSV() {
+  const sorted = getSortedCad();
+  const rows = [['#','Nome Responsável','CPF Resp.','NIS Resp.','Nasc. Resp.',
+                   'Nome Cônjuge','CPF Côn.','NIS Côn.','Nasc. Côn.','Arquivo','Erro']];
+  sorted.forEach((d, i) => {
+    const r = d.responsavel || {};
+    const c = d.conjuge     || {};
+    rows.push([
+      i+1,
+      r.nome||'', r.cpf||'', r.nis||'', r.nascimento||'',
+      c.nome||'', c.cpf||'', c.nis||'', c.nascimento||'',
+      d.fileName, d.error||''
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cadastro-unico-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
 }
 </script>
 </body>
