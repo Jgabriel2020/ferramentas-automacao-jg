@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plataforma JG — Automação Imobiliária</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   DESIGN SYSTEM
+═══════════════════════════════════════ */
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #21262d;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #484f58;
+  --green: #1DB996;
+  --green2: #0d8a6e;
+  --green-bg: rgba(29,185,150,0.1);
+  --green-border: rgba(29,185,150,0.3);
+  --red: #f85149;
+  --red-bg: rgba(248,81,73,0.1);
+  --amber: #d29922;
+  --amber-bg: rgba(210,153,34,0.1);
+  --blue: #388bfd;
+  --purple: #818cf8;
+  --purple-bg: rgba(99,102,241,0.12);
+  --purple-border: rgba(99,102,241,0.3);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(29,185,150,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29,185,150,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.container {
+  position: relative; z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 5rem;
+}
+
+/* ═══════════════════════════════════════
+   APP HEADER
+═══════════════════════════════════════ */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap; gap: 12px;
+}
+
+.app-logo { display: flex; align-items: center; gap: 12px; }
+
+.logo-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+
+.logo-text h1 { font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.logo-text p  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--purple-bg);
+  border: 1px solid var(--purple-border);
+  color: var(--purple);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: 4px 14px; border-radius: 20px;
+}
+
+/* ═══════════════════════════════════════
+   API KEY SECTION (shared)
+═══════════════════════════════════════ */
+.api-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+}
+
+.api-label {
+  font-size: 11px; font-weight: 500; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .06em;
+  white-space: nowrap; padding-top: 10px;
+  display: flex; align-items: center; gap: 7px;
+}
+
+.api-label .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0;
+}
+
+.api-inputs { flex: 1; min-width: 220px; }
+
+.api-row { display: flex; gap: 8px; }
+
+.api-row input {
+  flex: 1; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  outline: none; transition: border-color .2s;
+}
+.api-row input:focus { border-color: var(--green); }
+.api-row input::placeholder { color: var(--text3); }
+
+.api-hint { font-size: 11px; color: var(--text3); margin-top: 5px; }
+.api-hint a { color: var(--blue); text-decoration: none; }
+.api-hint a:hover { text-decoration: underline; }
+.api-status { font-size: 12px; margin-top: 6px; display: none; }
+.api-status.ok  { color: var(--green); display: block; }
+.api-status.err { color: var(--red);   display: block; }
+
+/* ═══════════════════════════════════════
+   MAIN TABS
+═══════════════════════════════════════ */
+.tab-nav {
+  display: flex; gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  padding: 9px 20px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--text2);
+  font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+  position: relative; bottom: -1px;
+}
+.tab-btn:hover { color: var(--text); background: var(--bg2); }
+.tab-btn.active {
+  color: var(--green);
+  background: var(--bg);
+  border-color: var(--border);
+  border-bottom-color: var(--bg);
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ═══════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════ */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.card-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+
+.card-header .step-num {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--purple-bg);
+  border: 1px solid var(--purple-border);
+  color: var(--purple);
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.card-body { padding: 14px; }
+
+.field { margin-bottom: 10px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block; font-size: 11px; color: var(--text2);
+  margin-bottom: 5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+
+.field input, .field select, .field textarea {
+  width: 100%; background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  color: var(--text); font-family: 'Sora', sans-serif; font-size: 13px;
+  outline: none; transition: border-color .2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--green); }
+.field select option { background: var(--bg2); }
+.field input[readonly] { color: var(--text3); cursor: default; }
+.field textarea { resize: vertical; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; }
+
+.badge-auto {
+  font-size: 9px; padding: 2px 6px; border-radius: 4px;
+  margin-left: 6px;
+  background: var(--green-bg); color: var(--green);
+  font-weight: 700; letter-spacing: .05em;
+  border: 1px solid var(--green-border);
+}
+
+.badge {
+  font-size: 11px; padding: 2px 10px; border-radius: 100px; font-weight: 500;
+}
+.badge.ok   { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.badge.warn { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(210,153,34,.3); }
+
+.btn {
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border2); background: var(--bg2);
+  color: var(--text); font-family: 'Sora', sans-serif; font-size: 13px;
+  font-weight: 500; cursor: pointer; transition: all .15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: var(--bg3); border-color: var(--border2); }
+.btn.primary {
+  background: var(--green); border-color: var(--green2); color: #fff;
+}
+.btn.primary:hover { background: var(--green2); }
+.btn.purple {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none; color: #fff;
+  box-shadow: 0 4px 16px rgba(99,102,241,.3);
+}
+.btn.purple:hover { opacity: .88; box-shadow: 0 6px 20px rgba(99,102,241,.4); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+.btn-sm {
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border2); background: var(--bg3);
+  color: var(--text); font-family: 'Sora', sans-serif; font-size: 12px;
+  font-weight: 500; cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.btn-sm:hover { border-color: var(--green); color: var(--green); }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.error-box {
+  background: var(--red-bg); border: 1px solid rgba(248,81,73,.3);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  font-size: 12px; color: var(--red); margin-bottom: 1rem; display: none;
+}
+
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 4px; }
+
+/* ═══════════════════════════════════════
+   TAB 1 — GERADOR DE MODELO
+═══════════════════════════════════════ */
+.n8n-info {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px;
+  margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--text2);
+}
+.n8n-info .n8n-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green); flex-shrink: 0;
+  box-shadow: 0 0 6px var(--green);
+}
+.n8n-url { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text3); word-break: break-all; }
+
+.upload-zone {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: border-color .2s, background .2s;
+  background: var(--bg3);
+  margin-bottom: 10px;
+}
+.upload-zone:hover {
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+.upload-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0;
+  cursor: pointer; width: 100%; height: 100%;
+}
+.upload-icon { font-size: 28px; margin-bottom: 8px; opacity: .7; }
+.upload-main { font-size: 13px; color: var(--text2); }
+.upload-main strong { color: var(--text); }
+.upload-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; padding: 5px 13px; border-radius: 20px;
+  margin-top: 10px; font-weight: 500;
+}
+.status-pill.waiting  { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.status-pill.loading  { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.status-pill.done     { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.status-pill.error    { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,81,73,.3); }
+.status-pill .sdot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.status-pill.loading .sdot { animation: blink 1.1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.foto-preview {
+  width: 100%; max-height: 200px; object-fit: cover;
+  border-radius: var(--radius-sm); margin-top: 12px;
+  display: none; border: 1px solid var(--border);
+}
+
+.note-box {
+  display: flex; gap: 9px; align-items: flex-start;
+  background: rgba(234,179,8,.05);
+  border: 1px solid rgba(234,179,8,.12);
+  border-radius: var(--radius-sm); padding: 10px 13px;
+  margin-top: 12px; font-size: 12px; color: #a18535; line-height: 1.6;
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media(max-width: 600px) {
+  .grid-2, .grid-3, .coords-row, .kml-grid { grid-template-columns: 1fr !important; }
+}
+
+.coords-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+.coords-block {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+}
+.coords-block .clabel {
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .07em;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+}
+
+.recibo-row { display: flex; align-items: center; gap: 14px; }
+.file-icon {
+  width: 44px; height: 52px; background: var(--bg3);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 20px;
+}
+.file-info { flex: 1; min-width: 0; }
+.file-info .fname { font-size: 13px; font-weight: 500; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-info .fsub  { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+.btn-attach {
+  height: 38px; padding: 0 16px;
+  border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  font-size: 13px; background: var(--bg3); color: var(--text2);
+  cursor: pointer; position: relative; overflow: hidden;
+  white-space: nowrap; flex-shrink: 0;
+  transition: background .15s, border-color .15s, color .15s;
+  font-family: 'Sora', sans-serif;
+}
+.btn-attach:hover { border-color: var(--green); color: var(--green); }
+.btn-attach input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* ═══════════════════════════════════════
+   TAB 2 — CONVERSOR KML
+═══════════════════════════════════════ */
+.kml-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+
+.drop-area {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 10px;
+}
+.drop-area:hover, .drop-area.drag {
+  border-color: var(--green); background: var(--green-bg);
+}
+.drop-area .icon { font-size: 22px; margin-bottom: 6px; }
+.drop-area p { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.drop-area strong { color: var(--text); }
+#fileInput { display: none; }
+
+.stats-row {
+  display: none;
+  grid-template-columns: repeat(3,1fr);
+  gap: 8px; margin-bottom: 1rem;
+}
+.stat {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px; text-align: center;
+}
+.stat .n { font-size: 22px; font-weight: 600; color: var(--green); }
+.stat .l { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+.preview-wrap { display: none; margin-bottom: 1rem; }
+.preview-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.preview-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--text2);
+}
+.table-scroll { max-height: 280px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  padding: 8px 14px; text-align: left;
+  font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  color: var(--text3); font-weight: 500;
+  background: var(--bg2); position: sticky; top: 0;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 7px 14px; font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text); border-bottom: 1px solid var(--border);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg3); }
+
+.ai-section {
+  margin-top: 1.25rem;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; display: none;
+}
+.ai-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--text2);
+}
+.ai-body { padding: 14px; }
+.ai-output {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+  font-size: 13px; color: var(--text2); line-height: 1.7;
+  min-height: 60px; white-space: pre-wrap;
+}
+.ai-output.loading { color: var(--text3); font-style: italic; }
+
+/* ═══════════════════════════════════════
+   TAB 3 — EXTRATOR DE PDFS
+═══════════════════════════════════════ */
+.pdf-drop {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 1rem;
+  background: var(--bg2);
+}
+.pdf-drop:hover, .pdf-drop.drag { border-color: var(--green); background: var(--green-bg); }
+.pdf-drop .icon { font-size: 34px; margin-bottom: 10px; }
+.pdf-drop h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.pdf-drop p { font-size: 12px; color: var(--text2); line-height: 1.6; }
+#pdfInput { display: none; }
+
+.pdf-file-list {
+  display: none;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden;
+}
+.pdf-file-list-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--text2);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pdf-file-items { max-height: 200px; overflow-y: auto; }
+.pdf-file-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.pdf-file-item:last-child { border-bottom: none; }
+.pdf-file-item .fi-num {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: var(--bg3); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--text2); flex-shrink: 0;
+}
+.pdf-file-item .fi-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-file-item .fi-size { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.fi-status.pending    { color: var(--text3); font-size: 11px; }
+.fi-status.processing { color: var(--amber); font-size: 11px; }
+.fi-status.done       { color: var(--green); font-size: 11px; }
+.fi-status.error      { color: var(--red);   font-size: 11px; }
+
+.pdf-progress { display: none; margin-bottom: 1rem; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--text2); margin-bottom: 6px;
+}
+.progress-bar-wrap { height: 6px; background: var(--bg3); border-radius: 100px; overflow: hidden; }
+.progress-bar-fill {
+  height: 100%; background: var(--green);
+  border-radius: 100px; transition: width .3s ease; width: 0%;
+}
+
+.pdf-results { display: none; margin-top: 1.5rem; }
+.results-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.results-header {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+}
+.results-header-left {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--text2);
+  display: flex; align-items: center; gap: 8px;
+}
+.results-actions { display: flex; gap: 6px; }
+.results-table-scroll { max-height: 420px; overflow-y: auto; }
+.results-table { width: 100%; border-collapse: collapse; }
+.results-table th {
+  padding: 9px 14px; text-align: left;
+  font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  color: var(--text3); font-weight: 500;
+  background: var(--bg2); position: sticky; top: 0;
+  border-bottom: 1px solid var(--border);
+}
+.results-table td { padding: 9px 14px; font-size: 12px; border-bottom: 1px solid var(--border); }
+.results-table tr:last-child td { border-bottom: none; }
+.results-table tr:hover td { background: var(--bg3); }
+.td-num  { font-family: 'JetBrains Mono', monospace; color: var(--text3); font-weight: 600; }
+.td-name { color: var(--text); font-family: 'Sora', sans-serif; font-size: 12px; }
+.td-coord { font-family: 'JetBrains Mono', monospace; color: var(--green); }
+.td-dms  { font-family: 'JetBrains Mono', monospace; color: var(--text2); font-size: 11px; }
+.td-err  { color: var(--red); font-family: 'Sora', sans-serif; font-size: 11px; font-style: italic; }
+
+.text-list-wrap { margin-top: 1rem; }
+.text-list-label {
+  font-size: 11px; font-weight: 500; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+}
+.text-list-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--text); line-height: 2; white-space: pre-wrap;
+  max-height: 300px; overflow-y: auto;
+}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="container">
+
+  <!-- ─── APP HEADER ─── -->
+  <div class="app-header">
+    <div class="app-logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">
+        <h1>Plataforma JG</h1>
+        <p>Automação imobiliária com Gemini AI + N8N</p>
+      </div>
+    </div>
+    <div class="eyebrow">⚡ Automação JG</div>
+  </div>
+
+  <!-- ─── CHAVE GEMINI (compartilhada) ─── -->
+  <div class="api-section" id="geminiSection">
+    <div class="api-label">
+      <div class="dot"></div>
+      Gemini API
+    </div>
+    <div class="api-inputs">
+      <div class="api-row">
+        <input type="password" id="apiKey" placeholder="Cole sua chave: AIza...">
+        <button class="btn-sm" onclick="testAPI()">Testar</button>
+      </div>
+      <div class="api-hint">
+        Obtenha sua chave gratuita em
+        <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>
+        · Necessária para o Conversor KML e Extrator de PDFs
+      </div>
+      <div class="api-status" id="apiStatus"></div>
+    </div>
+  </div>
+
+  <!-- ─── TABS PRINCIPAIS ─── -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchMainTab('tabGerador', this)">📋 Gerador de Modelo</button>
+    <button class="tab-btn" onclick="switchMainTab('tabKML', this)">🌍 Conversor KML</button>
+    <button class="tab-btn" onclick="switchMainTab('tabPDF', this)">📄 Extrator de PDFs</button>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       TAB 1 — GERADOR DE MODELO UNIDADES ISOLADAS
+  ═══════════════════════════════════════════ -->
+  <div id="tabGerador" class="tab-content active">
+
+    <!-- N8N Info -->
+    <div class="n8n-info">
+      <div class="n8n-dot"></div>
+      <div>
+        <strong style="color:var(--text);font-size:12px;">N8N Webhook ativo</strong>
+        <div class="n8n-url">https://joaotemp.app.n8n.cloud/webhook</div>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 1: FOTO -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="step-num">1</div>
+          <span>Foto do terreno (NoteCam)</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="upload-zone" id="fotoZone">
+          <input type="file" accept="image/*" id="fotoInput" onchange="handleFoto(this)">
+          <div class="upload-icon">📷</div>
+          <div class="upload-main"><strong>Clique para anexar</strong> ou arraste a foto</div>
+          <div class="upload-sub">JPG ou PNG — foto tirada com o app NoteCam com overlay de GPS</div>
+        </div>
+        <div id="fotoStatus" class="status-pill waiting">
+          <div class="sdot"></div> Aguardando foto
+        </div>
+        <img id="fotoPreview" class="foto-preview" alt="Preview da foto do terreno">
+        <div class="note-box">
+          ⚡ Ao anexar, o sistema extrai automaticamente: nome do beneficiário, endereço e coordenadas GPS via N8N + IA.
+        </div>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 2: DADOS -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="step-num">2</div>
+          <span>Dados do documento</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="field">
+            <label>Convenente <span style="font-size:10px;color:var(--text3);margin-left:4px;">(opcional)</span></label>
+            <input type="text" id="convenente" placeholder="Nome do convenente">
+          </div>
+          <div class="field">
+            <label>Interveniente <span style="font-size:10px;color:var(--text3);margin-left:4px;">(opcional)</span></label>
+            <input type="text" id="interveniente" placeholder="Se houver">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label>Nome do beneficiário <span class="badge-auto">AUTO</span></label>
+            <input type="text" id="beneficiario" readonly placeholder="Extraído da foto">
+          </div>
+          <div class="field">
+            <label>Município <span class="badge-auto">AUTO</span></label>
+            <input type="text" id="municipio" readonly placeholder="Extraído do documento">
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:10px;">
+          <label>Endereço do terreno <span class="badge-auto">AUTO</span></label>
+          <input type="text" id="endereco" readonly placeholder="Lote, quadra, loteamento — extraído da foto">
+        </div>
+
+        <div class="field" style="margin-top:10px;">
+          <label>Dimensões <span class="badge-auto">AUTO</span></label>
+          <input type="text" id="dimensoes" readonly placeholder="Ex: 10x20">
+        </div>
+
+        <div class="coords-row">
+          <div class="coords-block">
+            <div class="clabel">Latitude <span class="badge-auto">AUTO</span></div>
+            <div class="grid-3">
+              <div class="field"><label>Grau</label><input type="text" id="lat_grau" readonly></div>
+              <div class="field"><label>Minuto</label><input type="text" id="lat_min" readonly></div>
+              <div class="field"><label>Segundo</label><input type="text" id="lat_seg" readonly></div>
+            </div>
+          </div>
+          <div class="coords-block">
+            <div class="clabel">Longitude <span class="badge-auto">AUTO</span></div>
+            <div class="grid-3">
+              <div class="field"><label>Grau</label><input type="text" id="lon_grau" readonly></div>
+              <div class="field"><label>Minuto</label><input type="text" id="lon_min" readonly></div>
+              <div class="field"><label>Segundo</label><input type="text" id="lon_seg" readonly></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 3: RECIBO -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="step-num">3</div>
+          <span>Recibo de compra e venda</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="recibo-row">
+          <div class="file-icon">📄</div>
+          <div class="file-info">
+            <div class="fname" id="reciboNome">Nenhum arquivo selecionado</div>
+            <div class="fsub" id="reciboSub">PDF ou imagem do recibo assinado</div>
+          </div>
+          <button class="btn-attach">
+            <input type="file" accept=".pdf,image/*" id="reciboInput" onchange="handleRecibo(this)">
+            📎 Anexar recibo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RODAPÉ DO GERADOR -->
+    <div class="actions" style="justify-content:flex-end;">
+      <button class="btn" onclick="limpar()">Limpar tudo</button>
+      <button class="btn purple" id="btnGerar" onclick="gerar()">⬇ Gerar documento</button>
+    </div>
+
+  </div><!-- /tabGerador -->
+
+
+  <!-- ═══════════════════════════════════════════
+       TAB 2 — CONVERSOR KML
+  ═══════════════════════════════════════════ -->
+  <div id="tabKML" class="tab-content">
+
+    <div class="kml-grid">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-header">
+          <span>Dados de entrada</span>
+          <span style="font-size:10px;color:var(--text3)">CSV / TXT</span>
+        </div>
+        <div class="card-body">
+          <div class="drop-area" id="dropArea" onclick="document.getElementById('fileInput').click()">
+            <div class="icon">📂</div>
+            <p><strong>Clique ou arraste o arquivo</strong><br>CSV, TXT</p>
+            <input type="file" id="fileInput" accept=".csv,.txt">
+          </div>
+          <textarea class="field" style="margin:0;" id="rawText" rows="8" placeholder="Nº,Latitude,Longitude
+1,6°37'4&quot;S ,35°16'52&quot;W
+2,6°37'23&quot;S ,35°17'0&quot;W"></textarea>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-header"><span>Configurações KML</span></div>
+        <div class="card-body">
+          <div class="field">
+            <label>Nome da camada</label>
+            <input type="text" id="layerName" value="Pontos Georeferenciados">
+          </div>
+          <div class="field">
+            <label>Prefixo dos marcadores</label>
+            <input type="text" id="prefix" value="Ponto ">
+          </div>
+          <div class="field">
+            <label>Ícone</label>
+            <select id="iconType">
+              <option value="pushpin">Alfinete (pushpin)</option>
+              <option value="dot">Ponto (dot)</option>
+              <option value="flag">Bandeira (flag)</option>
+              <option value="star">Estrela (star)</option>
+              <option value="square">Quadrado</option>
+              <option value="target">Alvo (target)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Cor dos marcadores</label>
+            <select id="markerColor">
+              <option value="ff0000ff">🔴 Vermelho</option>
+              <option value="ff00ff00">🟢 Verde</option>
+              <option value="ffff0000">🔵 Azul</option>
+              <option value="ff00ffff">🟡 Amarelo</option>
+              <option value="ff1DB996">🩵 Teal</option>
+              <option value="ffff8c00">🟠 Laranja</option>
+              <option value="ffee82ee">🟣 Violeta</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Altitude padrão (metros)</label>
+            <input type="number" id="altitude" value="0" min="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <div class="error-box" id="errorBox"></div>
+
+      <div class="stats-row" id="statsRow">
+        <div class="stat"><div class="n" id="statTotal">0</div><div class="l">Total de linhas</div></div>
+        <div class="stat"><div class="n" id="statOk" style="color:var(--green)">0</div><div class="l">Convertidos</div></div>
+        <div class="stat"><div class="n" id="statErr" style="color:var(--red)">0</div><div class="l">Erros</div></div>
+      </div>
+
+      <div class="preview-wrap" id="previewWrap">
+        <div class="preview-card">
+          <div class="preview-header">
+            <span>Prévia — coordenadas convertidas</span>
+            <span class="badge ok" id="previewBadge">OK</span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Nome</th><th>Lat (decimal)</th><th>Lon (decimal)</th><th>Original</th></tr>
+              </thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" onclick="processData()">⚙ Processar coordenadas</button>
+        <button class="btn" id="btnAI" onclick="processWithAI()" disabled>✦ Processar com Gemini</button>
+        <button class="btn primary" id="btnDownload" onclick="downloadKML()" disabled>⬇ Baixar KML</button>
+        <button class="btn" id="btnKMZ" onclick="downloadKML('kmz')" disabled>⬇ Baixar KMZ</button>
+      </div>
+
+      <div class="ai-section" id="aiSection">
+        <div class="ai-header">
+          <span>✦</span>
+          <span>Gemini — análise inteligente</span>
+        </div>
+        <div class="ai-body">
+          <div class="ai-output" id="aiOutput">Aguardando processamento...</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tabKML -->
+
+
+  <!-- ═══════════════════════════════════════════
+       TAB 3 — EXTRATOR DE PDFS
+  ═══════════════════════════════════════════ -->
+  <div id="tabPDF" class="tab-content">
+
+    <div class="pdf-drop" id="pdfDrop" onclick="document.getElementById('pdfInput').click()">
+      <div class="icon">📑</div>
+      <h3>Arraste os PDFs aqui ou clique para selecionar</h3>
+      <p>Até <strong>60 arquivos</strong> PDF · Formulário "Modelo para Unidades Isoladas"<br>
+         O Gemini extrairá automaticamente o nome do beneficiário e as coordenadas de cada documento</p>
+      <input type="file" id="pdfInput" accept=".pdf" multiple>
+    </div>
+
+    <div class="pdf-file-list" id="pdfFileList">
+      <div class="pdf-file-list-header">
+        <span>📋 Arquivos selecionados — <span id="pdfCount">0</span>/60</span>
+        <button class="btn-sm" onclick="clearPDFs()">✕ Limpar</button>
+      </div>
+      <div class="pdf-file-items" id="pdfFileItems"></div>
+    </div>
+
+    <div class="pdf-progress" id="pdfProgress">
+      <div class="progress-label">
+        <span id="progressLabel">Processando...</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-bottom:0">
+      <button class="btn primary" id="btnExtract" onclick="extractAllPDFs()" disabled>✦ Extrair Coordenadas</button>
+      <button class="btn" id="btnExportCsv" onclick="exportResultsCSV()" disabled>⬇ Exportar CSV</button>
+      <button class="btn" id="btnCopyList" onclick="copyTextList()" disabled>⎘ Copiar Lista</button>
+    </div>
+
+    <div class="pdf-results" id="pdfResults">
+      <div class="results-card">
+        <div class="results-header">
+          <div class="results-header-left">
+            📍 Coordenadas extraídas
+            <span class="badge ok" id="resultsBadge">0 registros</span>
+          </div>
+        </div>
+        <div class="results-table-scroll">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width:40px">#</th>
+                <th>Nome do Beneficiário</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Coord. Original</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="text-list-wrap">
+        <div class="text-list-label">Lista de texto — pronta para copiar</div>
+        <div class="text-list-box" id="textListBox"></div>
+      </div>
+    </div>
+
+  </div><!-- /tabPDF -->
+
+</div><!-- /container -->
+
+<script>
+// ═══════════════════════════════════════
+// NAVEGAÇÃO ENTRE TABS
+// ═══════════════════════════════════════
+function switchMainTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════
+// GEMINI API (compartilhada)
+// ═══════════════════════════════════════
+async function callGemini(key, prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const body = { contents: [{ parts: [{ text: prompt }] }] };
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Erro na API'); }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callGeminiMultimodal(key, base64pdf, mimeType) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const prompt = `Este é um formulário de cadastro imobiliário chamado "Modelo para Unidades Isoladas".
+
+Extraia as seguintes informações e retorne APENAS um JSON válido, sem markdown, sem texto extra:
+
+{
+  "nome": "NOME DO BENEFICIÁRIO conforme aparece no formulário",
+  "lat_grau": número inteiro do grau da latitude,
+  "lat_min": número inteiro do minuto da latitude,
+  "lat_seg": número (pode ter decimal) do segundo da latitude,
+  "lat_dir": "S" ou "N",
+  "lon_grau": número inteiro do grau da longitude,
+  "lon_min": número inteiro do minuto da longitude,
+  "lon_seg": número (pode ter decimal) do segundo da longitude,
+  "lon_dir": "W" ou "E",
+  "lat_decimal": latitude em graus decimais (Sul = negativo),
+  "lon_decimal": longitude em graus decimais (Oeste = negativo),
+  "municipio": "município/estado se disponível"
+}
+
+Regras:
+- A tabela de coordenadas tem colunas: GRAU, MINUTO, SEGUNDO para LATITUDE e LONGITUDE
+- Latitude Sul = negativa no decimal, Longitude Oeste = negativa no decimal
+- Se não encontrar algum campo, use null`;
+
+  const body = { contents: [{ parts: [
+    { inline_data: { mime_type: mimeType, data: base64pdf } },
+    { text: prompt }
+  ] }] };
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) { const err = await res.json(); throw new Error(err?.error?.message || 'Erro na API'); }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function testAPI() {
+  const key = document.getElementById('apiKey').value.trim();
+  const status = document.getElementById('apiStatus');
+  if (!key) { status.textContent = '⚠ Cole a chave primeiro.'; status.className = 'api-status err'; return; }
+  status.textContent = 'Testando...'; status.className = 'api-status';
+  try {
+    const res = await callGemini(key, 'Responda apenas: OK');
+    if (res.includes('OK')) {
+      status.textContent = '✓ Chave válida! Gemini conectado.'; status.className = 'api-status ok';
+      document.getElementById('btnAI').disabled = false;
+      document.getElementById('btnExtract').disabled = pdfFiles.length === 0;
+    } else {
+      status.textContent = '✗ Resposta inesperada.'; status.className = 'api-status err';
+    }
+  } catch(e) {
+    status.textContent = '✗ ' + (e.message || 'Chave inválida.'); status.className = 'api-status err';
+  }
+}
+
+document.getElementById('apiKey').addEventListener('input', () => {
+  const hasKey = !!document.getElementById('apiKey').value.trim();
+  document.getElementById('btnAI').disabled = !hasKey;
+  document.getElementById('btnExtract').disabled = !hasKey || pdfFiles.length === 0;
+});
+
+// ═══════════════════════════════════════
+// TAB 1 — GERADOR DE MODELO
+// ═══════════════════════════════════════
+const N8N_BASE_URL = 'https://joaotemp.app.n8n.cloud/webhook';
+
+let fotoBase64    = null;
+let reciboBase64  = null;
+let fotoMimeType  = 'image/jpeg';
+let reciboMimeType = 'image/jpeg';
+let reciboImagens = [];
+
+function setStatus(type, text) {
+  const el = document.getElementById('fotoStatus');
+  el.className = 'status-pill ' + type;
+  el.innerHTML = '<div class="sdot"></div> ' + text;
+}
+
+function handleFoto(input) {
+  const file = input.files[0]; if (!file) return;
+  fotoMimeType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    fotoBase64 = e.target.result.split(',')[1];
+    const preview = document.getElementById('fotoPreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    setStatus('loading', 'Extraindo dados da foto via IA...');
+    enviarParaExtracao();
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleRecibo(input) {
+  const file = input.files[0]; if (!file) return;
+  reciboMimeType = file.type || 'application/pdf';
+  const reader = new FileReader();
+  reader.onload = async e => {
+    reciboBase64 = e.target.result.split(',')[1];
+    document.getElementById('reciboNome').textContent = file.name;
+    document.getElementById('reciboSub').textContent = (file.size / 1024).toFixed(0) + ' KB — processando...';
+    setStatus('loading', 'Extraindo dados do documento via IA...');
+
+    reciboImagens = [];
+    try {
+      const pdfData = atob(reciboBase64);
+      const pdfBytes = new Uint8Array(pdfData.length);
+      for (let i = 0; i < pdfData.length; i++) pdfBytes[i] = pdfData.charCodeAt(i);
+      const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        reciboImagens.push(canvas.toDataURL('image/jpeg', 0.95));
+      }
+      document.getElementById('reciboSub').textContent = `${pdf.numPages} página(s) — pronto`;
+    } catch(err) {
+      document.getElementById('reciboSub').textContent = 'PDF carregado';
+    }
+
+    enviarPDFParaExtracao();
+  };
+  reader.readAsDataURL(file);
+}
+
+function enviarPDFParaExtracao() {
+  fetch(N8N_BASE_URL + '/extrair-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recibo: reciboBase64, reciboMimeType })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.erro) throw new Error(data.erro);
+    ['municipio', 'endereco', 'dimensoes'].forEach(id => {
+      if (data[id]) document.getElementById(id).value = data[id];
+    });
+    setStatus('done', 'Dados extraídos com sucesso');
+    document.getElementById('reciboSub').textContent = 'Dados extraídos do documento';
+  })
+  .catch(err => {
+    setStatus('error', 'Erro ao extrair do documento — preencha manualmente');
+    document.getElementById('reciboSub').textContent = 'Erro na extração';
+  });
+}
+
+function enviarParaExtracao() {
+  fetch(N8N_BASE_URL + '/extrair-foto', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ foto: fotoBase64, mimeType: fotoMimeType })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.erro) throw new Error(data.erro);
+    preencherCampos(data);
+    setStatus('done', 'Dados extraídos com sucesso');
+  })
+  .catch(err => {
+    setStatus('error', 'Erro ao extrair — você pode preencher manualmente');
+    desbloquearCampos();
+  });
+}
+
+function preencherCampos(d) {
+  const campos = { beneficiario: d.beneficiario, municipio: d.municipio, endereco: d.endereco,
+    dimensoes: d.dimensoes, lat_grau: d.lat_grau, lat_min: d.lat_min, lat_seg: d.lat_seg,
+    lon_grau: d.lon_grau, lon_min: d.lon_min, lon_seg: d.lon_seg };
+  Object.entries(campos).forEach(([id, val]) => {
+    if (val !== undefined && val !== null) document.getElementById(id).value = val;
+  });
+}
+
+function desbloquearCampos() {
+  ['beneficiario','municipio','endereco','dimensoes',
+   'lat_grau','lat_min','lat_seg','lon_grau','lon_min','lon_seg'].forEach(id => {
+    const el = document.getElementById(id);
+    el.removeAttribute('readonly');
+    el.style.background = '';
+    el.style.color = '';
+    el.placeholder = 'Preencha manualmente';
+  });
+}
+
+function gerar() {
+  const v = id => document.getElementById(id).value;
+  const fotoHtml = fotoBase64
+    ? `<img src="data:${fotoMimeType};base64,${fotoBase64}" style="width:100%;display:block;">`
+    : `<div style="padding:60px;text-align:center;color:#aaa;font-style:italic;">Foto não disponível</div>`;
+
+  const reciboHtml = reciboImagens.length > 0
+    ? reciboImagens.map(img =>
+        `<div style="page-break-before:always;padding:0;"><img src="${img}" style="width:100%;display:block;"></div>`
+      ).join('')
+    : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#000; background:#fff; }
+  .page { padding:28px 35px; }
+  h1 { text-align:center; font-size:13px; font-weight:bold; margin-bottom:18px; text-transform:uppercase; letter-spacing:.04em; }
+  table.main { width:100%; border-collapse:collapse; }
+  table.main td { border:1px solid #000; padding:5px 8px; vertical-align:middle; }
+  table.main td.lbl { font-weight:bold; font-size:10px; white-space:nowrap; }
+  .coords { border:1px solid #000; border-top:none; padding:6px 8px; }
+  .coords-title { font-weight:bold; font-size:10px; text-transform:uppercase; margin-bottom:6px; }
+  table.crd { width:100%; border-collapse:collapse; }
+  table.crd th, table.crd td { border:1px solid #000; padding:4px 8px; text-align:center; font-size:10px; }
+  table.crd .gh { font-weight:bold; background:#e0e0e0; text-transform:uppercase; }
+  table.crd .sh { font-weight:bold; background:#f0f0f0; }
+  .foto { border:1px solid #000; border-top:none; overflow:hidden; }
+  @media print { @page { margin:10mm; size:A4 portrait; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+</style></head><body>
+<div class="page">
+  <h1>Modelo para Unidades Isoladas</h1>
+  <table class="main">
+    <tr><td class="lbl">CONVENENTE:</td><td>${v('convenente')}</td></tr>
+    <tr><td class="lbl">INTERVENIENTE (Se houver):</td><td>${v('interveniente')}</td></tr>
+    <tr><td class="lbl">MUNICÍPIO:</td><td>${v('municipio')}</td></tr>
+    <tr><td class="lbl">NOME DO BENEFICIÁRIO:</td><td>${v('beneficiario')}</td></tr>
+    <tr><td class="lbl">ENDEREÇO DO TERRENO:</td><td>${v('endereco')}</td></tr>
+    <tr><td class="lbl">DIMENSÕES DO TERRENO:</td><td>${v('dimensoes')}</td></tr>
+  </table>
+  <div class="coords">
+    <div class="coords-title">Coordenadas do Terreno:</div>
+    <table class="crd">
+      <tr><td colspan="3" class="gh">LATITUDE</td><td colspan="3" class="gh">LONGITUDE</td></tr>
+      <tr><th class="sh">GRAU</th><th class="sh">MINUTO</th><th class="sh">SEGUNDO</th>
+          <th class="sh">GRAU</th><th class="sh">MINUTO</th><th class="sh">SEGUNDO</th></tr>
+      <tr><td>${v('lat_grau')}</td><td>${v('lat_min')}</td><td>${v('lat_seg')}</td>
+          <td>${v('lon_grau')}</td><td>${v('lon_min')}</td><td>${v('lon_seg')}</td></tr>
+    </table>
+  </div>
+  <div class="foto">${fotoHtml}</div>
+</div>
+${reciboHtml}
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { setTimeout(() => win.print(), 500); };
+}
+
+function limpar() {
+  ['convenente','interveniente','beneficiario','municipio','endereco',
+   'dimensoes','lat_grau','lat_min','lat_seg','lon_grau','lon_min','lon_seg']
+    .forEach(id => document.getElementById(id).value = '');
+  fotoBase64 = null; reciboBase64 = null;
+  fotoMimeType = 'image/jpeg'; reciboMimeType = 'image/jpeg'; reciboImagens = [];
+  document.getElementById('fotoPreview').style.display = 'none';
+  document.getElementById('fotoInput').value = '';
+  document.getElementById('reciboInput').value = '';
+  document.getElementById('reciboNome').textContent = 'Nenhum arquivo selecionado';
+  document.getElementById('reciboSub').textContent = 'PDF ou imagem do recibo assinado';
+  setStatus('waiting', 'Aguardando foto');
+}
+
+// ═══════════════════════════════════════
+// TAB 2 — CONVERSOR KML
+// ═══════════════════════════════════════
+let parsedPoints = [];
+
+const iconMap = {
+  pushpin: 'http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png',
+  dot:     'http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png',
+  flag:    'http://maps.google.com/mapfiles/kml/shapes/flag.png',
+  star:    'http://maps.google.com/mapfiles/kml/shapes/star.png',
+  square:  'http://maps.google.com/mapfiles/kml/shapes/square.png',
+  target:  'http://maps.google.com/mapfiles/kml/shapes/target.png'
+};
+
+const dropArea = document.getElementById('dropArea');
+document.getElementById('fileInput').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return; readFileKML(f);
+});
+dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('drag'); });
+dropArea.addEventListener('dragleave', () => dropArea.classList.remove('drag'));
+dropArea.addEventListener('drop', e => {
+  e.preventDefault(); dropArea.classList.remove('drag');
+  const f = e.dataTransfer.files[0]; if (!f) return; readFileKML(f);
+});
+
+function readFileKML(f) {
+  const r = new FileReader();
+  r.onload = ev => { document.getElementById('rawText').value = ev.target.result; };
+  r.readAsText(f, 'UTF-8');
+}
+
+function parseDMS(str) {
+  if (!str) return null;
+  str = str.trim()
+    .replace(/°/g,'°').replace(/′/g,"'").replace(/″/g,'"')
+    .replace(/∘/g,'°');
+  const m = str.match(/(\d+)[°]\s*(\d+)[′']\s*([\d.]+)[″"]\s*([NSEWnsew])/);
+  if (!m) return null;
+  let dec = parseFloat(m[1]) + parseFloat(m[2])/60 + parseFloat(m[3])/3600;
+  if ('SW'.includes(m[4].toUpperCase())) dec = -dec;
+  return dec;
+}
+
+function processData() {
+  const raw = document.getElementById('rawText').value.trim();
+  if (!raw) { showError('Cole ou carregue os dados primeiro.'); return; }
+  hideError();
+  parsedPoints = [];
+  let errors = 0;
+  const prefix = document.getElementById('prefix').value;
+  const lines = raw.split('\n').filter(l => l.trim());
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = '';
+
+  for (const line of lines) {
+    const parts = line.split(',');
+    if (parts.length < 3) continue;
+    const num = parts[0].trim();
+    if (/^(nº|n|#|num)/i.test(num)) continue;
+    const n = parseInt(num);
+    if (isNaN(n)) continue;
+    const lat = parseDMS(parts[1]);
+    const lon = parseDMS(parts[2]);
+    if (lat === null || lon === null) { errors++; continue; }
+    const point = { n, name: prefix + num, lat, lon, rawLat: parts[1].trim(), rawLon: parts[2].trim() };
+    parsedPoints.push(point);
+    addTableRow(point);
+  }
+
+  updateStats(parsedPoints.length + errors, parsedPoints.length, errors);
+  updatePreviewBadge(errors);
+  document.getElementById('previewWrap').style.display = parsedPoints.length ? 'block' : 'none';
+  document.getElementById('statsRow').style.display = parsedPoints.length + errors > 0 ? 'grid' : 'none';
+  document.getElementById('btnDownload').disabled = parsedPoints.length === 0;
+  document.getElementById('btnKMZ').disabled = parsedPoints.length === 0;
+
+  if (errors > 0 && document.getElementById('apiKey').value) {
+    showError(`${errors} linha(s) não puderam ser convertidas. Clique em "Processar com Gemini" para corrigir automaticamente.`);
+  }
+}
+
+function addTableRow(p) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${p.n}</td>
+    <td style="color:var(--text2)">${p.name}</td>
+    <td>${p.lat.toFixed(7)}</td>
+    <td>${p.lon.toFixed(7)}</td>
+    <td style="color:var(--text3);font-size:11px">${p.rawLat}, ${p.rawLon}</td>
+  `;
+  document.getElementById('previewBody').appendChild(tr);
+}
+
+function updateStats(total, ok, err) {
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statOk').textContent = ok;
+  document.getElementById('statErr').textContent = err;
+}
+
+function updatePreviewBadge(errors) {
+  const badge = document.getElementById('previewBadge');
+  if (errors > 0) { badge.textContent = errors + ' erro(s)'; badge.className = 'badge warn'; }
+  else { badge.textContent = parsedPoints.length + ' OK'; badge.className = 'badge ok'; }
+}
+
+async function processWithAI() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { showError('Configure e teste a chave Gemini primeiro.'); return; }
+  const raw = document.getElementById('rawText').value.trim();
+  if (!raw) { showError('Cole os dados primeiro.'); return; }
+
+  const aiSection = document.getElementById('aiSection');
+  const aiOutput = document.getElementById('aiOutput');
+  aiSection.style.display = 'block';
+  aiOutput.className = 'ai-output loading';
+  aiOutput.textContent = 'Enviando para o Gemini...';
+  document.getElementById('btnAI').disabled = true;
+  hideError();
+
+  const prompt = `Você é um especialista em georreferenciamento. Analise os dados abaixo com coordenadas em graus°min′seg″ e retorne APENAS um JSON válido, sem nenhum texto ou markdown ao redor.
+
+Formato esperado:
+{"pontos":[{"n":1,"nome":"Ponto 1","lat":-6.617778,"lon":-35.281111},...],"observacoes":"texto com análise"}
+
+Regras:
+- Latitude Sul = negativa
+- Longitude Oeste = negativa
+- Precisão: 7 casas decimais
+- Se encontrar erros ou formatos irregulares, corrija e mencione nas observações
+
+Dados:
+${raw}`;
+
+  try {
+    const response = await callGemini(key, prompt);
+    aiOutput.className = 'ai-output';
+    let jsonStr = response.trim().replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    let parsed;
+    try { parsed = JSON.parse(jsonStr); } catch(e) { aiOutput.textContent = 'Resposta do Gemini:\n\n' + response; return; }
+
+    if (parsed.pontos && Array.isArray(parsed.pontos)) {
+      parsedPoints = parsed.pontos.map(p => ({
+        n: p.n, name: p.nome || ('Ponto ' + p.n),
+        lat: p.lat, lon: p.lon,
+        rawLat: p.lat.toFixed(7), rawLon: p.lon.toFixed(7)
+      }));
+      const tbody = document.getElementById('previewBody');
+      tbody.innerHTML = '';
+      parsedPoints.forEach(addTableRow);
+      updateStats(parsedPoints.length, parsedPoints.length, 0);
+      updatePreviewBadge(0);
+      document.getElementById('previewWrap').style.display = 'block';
+      document.getElementById('statsRow').style.display = 'grid';
+      document.getElementById('btnDownload').disabled = false;
+      document.getElementById('btnKMZ').disabled = false;
+      aiOutput.textContent = `✓ ${parsedPoints.length} pontos convertidos pelo Gemini.\n\n`;
+      if (parsed.observacoes) aiOutput.textContent += '📋 Observações:\n' + parsed.observacoes;
+    } else {
+      aiOutput.textContent = 'Resposta do Gemini:\n\n' + response;
+    }
+  } catch(e) {
+    aiOutput.className = 'ai-output';
+    aiOutput.textContent = '✗ Erro: ' + (e.message || 'Falha na comunicação com o Gemini.');
+    showError(e.message || 'Erro no Gemini');
+  } finally {
+    document.getElementById('btnAI').disabled = false;
+  }
+}
+
+function escapeXML(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function buildKML() {
+  const layerName = document.getElementById('layerName').value;
+  const icon = iconMap[document.getElementById('iconType').value];
+  const color = document.getElementById('markerColor').value;
+  const alt = parseFloat(document.getElementById('altitude').value) || 0;
+
+  let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${escapeXML(layerName)}</name>
+    <description>Gerado por Plataforma JG — ${new Date().toLocaleDateString('pt-BR')}</description>
+    <Style id="marker">
+      <IconStyle>
+        <color>${color}</color><scale>1.1</scale>
+        <Icon><href>${icon}</href></Icon>
+        <hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/>
+      </IconStyle>
+      <LabelStyle><scale>0.85</scale></LabelStyle>
+    </Style>\n`;
+
+  for (const p of parsedPoints) {
+    kml += `    <Placemark>
+      <name>${escapeXML(p.name)}</name>
+      <description>${escapeXML(`Lat: ${p.lat.toFixed(7)}\nLon: ${p.lon.toFixed(7)}`)}</description>
+      <styleUrl>#marker</styleUrl>
+      <Point>
+        <altitudeMode>relativeToGround</altitudeMode>
+        <coordinates>${p.lon.toFixed(8)},${p.lat.toFixed(8)},${alt}</coordinates>
+      </Point>
+    </Placemark>\n`;
+  }
+  kml += `  </Document>\n</kml>`;
+  return kml;
+}
+
+function downloadKML() {
+  if (!parsedPoints.length) return;
+  const kml = buildKML();
+  const name = (document.getElementById('layerName').value || 'pontos').replace(/\s+/g,'_');
+  const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.kml';
+  a.click();
+}
+
+function showError(msg) { const e = document.getElementById('errorBox'); e.textContent = msg; e.style.display = 'block'; }
+function hideError() { document.getElementById('errorBox').style.display = 'none'; }
+
+// ═══════════════════════════════════════
+// TAB 3 — EXTRATOR DE PDFS
+// ═══════════════════════════════════════
+let pdfFiles = [];
+let pdfResultsStatus = [];
+let extractedData = [];
+
+const pdfDrop = document.getElementById('pdfDrop');
+const pdfInput = document.getElementById('pdfInput');
+
+pdfInput.addEventListener('change', e => { addPDFFiles(Array.from(e.target.files)); e.target.value = ''; });
+pdfDrop.addEventListener('dragover', e => { e.preventDefault(); pdfDrop.classList.add('drag'); });
+pdfDrop.addEventListener('dragleave', () => pdfDrop.classList.remove('drag'));
+pdfDrop.addEventListener('drop', e => {
+  e.preventDefault(); pdfDrop.classList.remove('drag');
+  addPDFFiles(Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')));
+});
+
+function addPDFFiles(files) {
+  const toAdd = files.slice(0, 60 - pdfFiles.length);
+  pdfFiles = pdfFiles.concat(toAdd);
+  renderFileList();
+  const hasKey = !!document.getElementById('apiKey').value.trim();
+  document.getElementById('btnExtract').disabled = pdfFiles.length === 0 || !hasKey;
+}
+
+function renderFileList() {
+  const list = document.getElementById('pdfFileList');
+  const items = document.getElementById('pdfFileItems');
+  if (pdfFiles.length === 0) { list.style.display = 'none'; return; }
+  list.style.display = 'block';
+  document.getElementById('pdfCount').textContent = pdfFiles.length;
+  items.innerHTML = '';
+  pdfFiles.forEach((f, i) => {
+    const s = pdfResultsStatus[i];
+    let statusHtml = '<span class="fi-status pending">· pendente</span>';
+    if (s === 'processing') statusHtml = '<span class="fi-status processing">⟳ processando...</span>';
+    else if (s === 'done')  statusHtml = '<span class="fi-status done">✓ concluído</span>';
+    else if (s === 'error') statusHtml = '<span class="fi-status error">✗ erro</span>';
+    const div = document.createElement('div');
+    div.className = 'pdf-file-item'; div.id = 'pdf-item-' + i;
+    div.innerHTML = `
+      <div class="fi-num">${i + 1}</div>
+      <div class="fi-name" title="${f.name}">${f.name}</div>
+      <div class="fi-size">${(f.size / 1024).toFixed(0)} KB</div>
+      ${statusHtml}
+    `;
+    items.appendChild(div);
+  });
+}
+
+function updateFileStatus(index, status) {
+  pdfResultsStatus[index] = status;
+  const item = document.getElementById('pdf-item-' + index);
+  if (!item) return;
+  const statusEl = item.querySelector('[class^="fi-status"], .fi-status');
+  if (statusEl) {
+    const map = { processing: ['⟳ processando...'], done: ['✓ concluído'], error: ['✗ erro'] };
+    statusEl.className = 'fi-status ' + status;
+    statusEl.textContent = (map[status] || ['· pendente'])[0];
+  }
+}
+
+function clearPDFs() {
+  pdfFiles = []; pdfResultsStatus = [];
+  renderFileList();
+  document.getElementById('btnExtract').disabled = true;
+  document.getElementById('pdfProgress').style.display = 'none';
+  document.getElementById('pdfResults').style.display = 'none';
+  document.getElementById('btnExportCsv').disabled = true;
+  document.getElementById('btnCopyList').disabled = true;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function dmsToDecimal(grau, min, seg, dir) {
+  let dec = Math.abs(grau) + min / 60 + seg / 3600;
+  if (dir === 'S' || dir === 'W') dec = -dec;
+  return dec;
+}
+
+function formatDMS(grau, min, seg, dir) {
+  return `${grau}°${min}'${parseFloat(seg).toFixed(0)}"${dir}`;
+}
+
+async function extractAllPDFs() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { alert('Configure a chave Gemini primeiro.'); return; }
+  if (pdfFiles.length === 0) { alert('Selecione ao menos um PDF.'); return; }
+
+  extractedData = [];
+  pdfResultsStatus = new Array(pdfFiles.length).fill('pending');
+
+  const btnExtract = document.getElementById('btnExtract');
+  btnExtract.disabled = true;
+
+  const progressWrap = document.getElementById('pdfProgress');
+  const progressLabel = document.getElementById('progressLabel');
+  const progressPct = document.getElementById('progressPct');
+  const progressFill = document.getElementById('progressFill');
+  progressWrap.style.display = 'block';
+
+  const resultsSection = document.getElementById('pdfResults');
+  document.getElementById('resultsBody').innerHTML = '';
+  resultsSection.style.display = 'block';
+  document.getElementById('textListBox').textContent = '';
+
+  let done = 0;
+
+  for (let i = 0; i < pdfFiles.length; i++) {
+    const file = pdfFiles[i];
+    updateFileStatus(i, 'processing');
+    progressLabel.textContent = `Processando ${i + 1} de ${pdfFiles.length}: ${file.name}`;
+    progressPct.textContent = Math.round((i / pdfFiles.length) * 100) + '%';
+    progressFill.style.width = Math.round((i / pdfFiles.length) * 100) + '%';
+
+    let rowData = { index: i + 1, nome: file.name.replace('.pdf','').replace(/_/g,' '), lat: null, lon: null, dmsLat: '—', dmsLon: '—', error: null };
+
+    try {
+      const base64 = await fileToBase64(file);
+      const response = await callGeminiMultimodal(key, base64, 'application/pdf');
+      let jsonStr = response.trim().replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+      if (jsonMatch) jsonStr = jsonMatch[0];
+      const parsed = JSON.parse(jsonStr);
+
+      const latDec = parsed.lat_decimal != null ? parsed.lat_decimal
+        : (parsed.lat_grau != null ? dmsToDecimal(parsed.lat_grau, parsed.lat_min || 0, parsed.lat_seg || 0, parsed.lat_dir || 'S') : null);
+      const lonDec = parsed.lon_decimal != null ? parsed.lon_decimal
+        : (parsed.lon_grau != null ? dmsToDecimal(parsed.lon_grau, parsed.lon_min || 0, parsed.lon_seg || 0, parsed.lon_dir || 'W') : null);
+
+      rowData.nome = parsed.nome || rowData.nome;
+      rowData.lat = latDec !== null ? parseFloat(latDec).toFixed(7) : null;
+      rowData.lon = lonDec !== null ? parseFloat(lonDec).toFixed(7) : null;
+
+      if (parsed.lat_grau != null) {
+        rowData.dmsLat = formatDMS(parsed.lat_grau, parsed.lat_min || 0, parsed.lat_seg || 0, parsed.lat_dir || 'S');
+        rowData.dmsLon = formatDMS(parsed.lon_grau, parsed.lon_min || 0, parsed.lon_seg || 0, parsed.lon_dir || 'W');
+      }
+
+      updateFileStatus(i, 'done'); done++;
+    } catch(e) {
+      rowData.error = e.message || 'Falha ao processar';
+      updateFileStatus(i, 'error');
+    }
+
+    extractedData.push(rowData);
+    appendResultRow(rowData);
+    updateTextList();
+  }
+
+  progressLabel.textContent = `✓ Concluído — ${done} de ${pdfFiles.length} processados`;
+  progressPct.textContent = '100%';
+  progressFill.style.width = '100%';
+  document.getElementById('resultsBadge').textContent = done + ' registros';
+  document.getElementById('btnExportCsv').disabled = done === 0;
+  document.getElementById('btnCopyList').disabled = done === 0;
+  btnExtract.disabled = false;
+}
+
+function appendResultRow(d) {
+  const tbody = document.getElementById('resultsBody');
+  const tr = document.createElement('tr');
+  if (d.error) {
+    tr.innerHTML = `<td class="td-num">${d.index}</td><td class="td-name">${d.nome}</td><td colspan="3" class="td-err">✗ ${d.error}</td>`;
+  } else {
+    tr.innerHTML = `
+      <td class="td-num">${d.index}</td>
+      <td class="td-name">${d.nome}</td>
+      <td class="td-coord">${d.lat !== null ? d.lat : '—'}</td>
+      <td class="td-coord">${d.lon !== null ? d.lon : '—'}</td>
+      <td class="td-dms">${d.dmsLat} / ${d.dmsLon}</td>
+    `;
+  }
+  tbody.appendChild(tr);
+}
+
+function updateTextList() {
+  const box = document.getElementById('textListBox');
+  box.textContent = extractedData.map(d =>
+    d.error ? `${d.index}. ERRO: ${d.error}` : `${d.index}. Lat: ${d.lat}  |  Lon: ${d.lon}`
+  ).join('\n\n');
+}
+
+function exportResultsCSV() {
+  if (!extractedData.length) return;
+  const rows = [['#','Nome do Beneficiário','Latitude','Longitude','Lat DMS','Lon DMS','Erro']];
+  extractedData.forEach(d => rows.push([d.index, d.nome, d.lat||'', d.lon||'', d.dmsLat, d.dmsLon, d.error||'']));
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'coordenadas_pdf_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+function copyTextList() {
+  const text = document.getElementById('textListBox').textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btnCopyList');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ Copiado!';
+    setTimeout(() => { btn.innerHTML = orig; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
