@@ -992,31 +992,41 @@ async function callGemini(key, prompt) {
 
 async function callGeminiMultimodal(key, base64pdf, mimeType) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
-  const prompt = `Este é um documento ou foto de cadastro imobiliário (pode ser o formulário "Modelo para Unidades Isoladas", uma foto tirada com app de GPS como NoteCam, ou qualquer documento com dados de georreferenciamento).
+  const prompt = `Este é um documento de cadastro imobiliário ou georreferenciamento. Pode ser:
+- Um formulário individual ("Modelo para Unidades Isoladas") com dados de UM beneficiário
+- Uma foto com overlay GPS (ex: NoteCam) com coordenadas sobrepostas
+- Uma LISTA/TABELA com MÚLTIPLOS beneficiários (ex: "LISTA DE BENEFICIARIOS", planilha com várias linhas)
 
-Extraia as seguintes informações e retorne APENAS um JSON válido, sem markdown, sem texto extra:
+Analise o documento e retorne APENAS um JSON válido, sem markdown, sem texto extra, no seguinte formato:
 
 {
-  "nome": "NOME DO BENEFICIÁRIO ou proprietário conforme aparece no documento/foto",
-  "lat_grau": número inteiro do grau da latitude,
-  "lat_min": número inteiro do minuto da latitude,
-  "lat_seg": número (pode ter decimal) do segundo da latitude,
-  "lat_dir": "S" ou "N",
-  "lon_grau": número inteiro do grau da longitude,
-  "lon_min": número inteiro do minuto da longitude,
-  "lon_seg": número (pode ter decimal) do segundo da longitude,
-  "lon_dir": "W" ou "E",
-  "lat_decimal": latitude em graus decimais (Sul = negativo),
-  "lon_decimal": longitude em graus decimais (Oeste = negativo),
-  "municipio": "município/estado se disponível"
+  "tipo": "individual" ou "lista",
+  "registros": [
+    {
+      "nome": "NOME DO BENEFICIÁRIO conforme aparece no documento",
+      "lat_grau": número inteiro do grau da latitude,
+      "lat_min": número inteiro do minuto da latitude,
+      "lat_seg": número (pode ter decimal) do segundo da latitude,
+      "lat_dir": "S" ou "N",
+      "lon_grau": número inteiro do grau da longitude,
+      "lon_min": número inteiro do minuto da longitude,
+      "lon_seg": número (pode ter decimal) do segundo da longitude,
+      "lon_dir": "W" ou "E",
+      "lat_decimal": latitude em graus decimais (Sul = negativo),
+      "lon_decimal": longitude em graus decimais (Oeste = negativo),
+      "municipio": "município/estado se disponível"
+    }
+  ]
 }
 
 Regras:
-- Se for formulário: a tabela de coordenadas tem colunas GRAU, MINUTO, SEGUNDO para LATITUDE e LONGITUDE
-- Se for foto com overlay GPS (ex: NoteCam): as coordenadas aparecem sobrepostas na imagem no formato grau°min'seg"direção
+- Se o documento for uma LISTA/TABELA com vários beneficiários: extraia TODOS os registros, um objeto por linha/beneficiário
+- Se for formulário individual ou foto: o array "registros" terá apenas 1 elemento
+- Em listas tabulares: colunas típicas são # | Nome | Município | Latitude (grau/min/seg/dir) | Longitude (grau/min/seg/dir)
 - Latitude Sul = negativa no decimal, Longitude Oeste = negativa no decimal
 - Precisão: 7 casas decimais no decimal
-- Se não encontrar algum campo, use null`;
+- Se não encontrar algum campo, use null
+- NUNCA omita registros — extraia absolutamente todos os que aparecerem no documento`;
 
   const body = { contents: [{ parts: [
     { inline_data: { mime_type: mimeType, data: base64pdf } },
@@ -1586,6 +1596,7 @@ async function extractAllPDFs() {
   document.getElementById('textListBox').textContent = '';
 
   let done = 0;
+  let globalIndex = 0;
 
   for (let i = 0; i < pdfFiles.length; i++) {
     const file = pdfFiles[i];
@@ -1593,8 +1604,6 @@ async function extractAllPDFs() {
     progressLabel.textContent = `Processando ${i + 1} de ${pdfFiles.length}: ${file.name}`;
     progressPct.textContent = Math.round((i / pdfFiles.length) * 100) + '%';
     progressFill.style.width = Math.round((i / pdfFiles.length) * 100) + '%';
-
-    let rowData = { index: i + 1, nome: file.name.replace('.pdf','').replace(/_/g,' '), lat: null, lon: null, dmsLat: '—', dmsLon: '—', error: null };
 
     try {
       const base64 = await fileToBase64(file);
@@ -1604,37 +1613,55 @@ async function extractAllPDFs() {
       if (jsonMatch) jsonStr = jsonMatch[0];
       const parsed = JSON.parse(jsonStr);
 
-      const latDec = parsed.lat_decimal != null ? parsed.lat_decimal
-        : (parsed.lat_grau != null ? dmsToDecimal(parsed.lat_grau, parsed.lat_min || 0, parsed.lat_seg || 0, parsed.lat_dir || 'S') : null);
-      const lonDec = parsed.lon_decimal != null ? parsed.lon_decimal
-        : (parsed.lon_grau != null ? dmsToDecimal(parsed.lon_grau, parsed.lon_min || 0, parsed.lon_seg || 0, parsed.lon_dir || 'W') : null);
+      // Suporte a formato de array (lista) e formato legado (objeto único)
+      const registros = Array.isArray(parsed.registros) && parsed.registros.length > 0
+        ? parsed.registros
+        : [parsed];
 
-      rowData.nome = parsed.nome || rowData.nome;
-      rowData.lat = latDec !== null ? parseFloat(latDec).toFixed(7) : null;
-      rowData.lon = lonDec !== null ? parseFloat(lonDec).toFixed(7) : null;
+      for (const reg of registros) {
+        globalIndex++;
+        const latDec = reg.lat_decimal != null ? reg.lat_decimal
+          : (reg.lat_grau != null ? dmsToDecimal(reg.lat_grau, reg.lat_min || 0, reg.lat_seg || 0, reg.lat_dir || 'S') : null);
+        const lonDec = reg.lon_decimal != null ? reg.lon_decimal
+          : (reg.lon_grau != null ? dmsToDecimal(reg.lon_grau, reg.lon_min || 0, reg.lon_seg || 0, reg.lon_dir || 'W') : null);
 
-      if (parsed.lat_grau != null) {
-        rowData.dmsLat = formatDMS(parsed.lat_grau, parsed.lat_min || 0, parsed.lat_seg || 0, parsed.lat_dir || 'S');
-        rowData.dmsLon = formatDMS(parsed.lon_grau, parsed.lon_min || 0, parsed.lon_seg || 0, parsed.lon_dir || 'W');
+        const rowData = {
+          index: globalIndex,
+          nome: reg.nome || file.name.replace('.pdf','').replace(/_/g,' '),
+          lat: latDec !== null ? parseFloat(latDec).toFixed(7) : null,
+          lon: lonDec !== null ? parseFloat(lonDec).toFixed(7) : null,
+          dmsLat: reg.lat_grau != null ? formatDMS(reg.lat_grau, reg.lat_min || 0, reg.lat_seg || 0, reg.lat_dir || 'S') : '—',
+          dmsLon: reg.lon_grau != null ? formatDMS(reg.lon_grau, reg.lon_min || 0, reg.lon_seg || 0, reg.lon_dir || 'W') : '—',
+          error: null
+        };
+
+        extractedData.push(rowData);
+        appendResultRow(rowData);
       }
 
       updateFileStatus(i, 'done'); done++;
     } catch(e) {
-      rowData.error = e.message || 'Falha ao processar';
+      globalIndex++;
+      const rowData = {
+        index: globalIndex,
+        nome: file.name.replace('.pdf','').replace(/_/g,' '),
+        lat: null, lon: null, dmsLat: '—', dmsLon: '—',
+        error: e.message || 'Falha ao processar'
+      };
+      extractedData.push(rowData);
+      appendResultRow(rowData);
       updateFileStatus(i, 'error');
     }
 
-    extractedData.push(rowData);
-    appendResultRow(rowData);
     updateTextList();
   }
 
-  progressLabel.textContent = `✓ Concluído — ${done} de ${pdfFiles.length} processados`;
+  progressLabel.textContent = `✓ Concluído — ${done} de ${pdfFiles.length} arquivos processados (${globalIndex} registros)`;
   progressPct.textContent = '100%';
   progressFill.style.width = '100%';
-  document.getElementById('resultsBadge').textContent = done + ' registros';
-  document.getElementById('btnExportCsv').disabled = done === 0;
-  document.getElementById('btnCopyList').disabled = done === 0;
+  document.getElementById('resultsBadge').textContent = globalIndex + ' registros';
+  document.getElementById('btnExportCsv').disabled = globalIndex === 0;
+  document.getElementById('btnCopyList').disabled = globalIndex === 0;
   btnExtract.disabled = false;
 }
 
